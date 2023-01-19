@@ -24,7 +24,7 @@ spec:
         {{- include "dremio.coordinator.podAnnotations" $ | nindent 8 }}
     spec:
       {{- include "dremio.coordinator.serviceAccount" $ | nindent 6 }}
-      terminationGracePeriodSeconds: 120
+      terminationGracePeriodSeconds: {{ template "dremio.coordinator.stopTimeoutPod" }}
       {{- include "dremio.coordinator.nodeSelector" $ | nindent 6 }}
       {{- include "dremio.coordinator.tolerations" $ | nindent 6 }}
       containers:
@@ -58,6 +58,8 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         {{- end }}
+        - name: DREMIO_STOP_TIMEOUT
+          value: "{{ template "dremio.coordinator.stopTimeoutDremio" $ }}"
         - name: DREMIO_MAX_HEAP_MEMORY_SIZE_MB
           value: "{{ template "dremio.coordinator.heapMemory" $ }}"
         - name: DREMIO_MAX_DIRECT_MEMORY_SIZE_MB
@@ -84,9 +86,15 @@ spec:
           value: "/opt/dremio/aws/credentials"
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: "/opt/dremio/aws/credentials"
+        lifecycle:
+          preStop:
+            exec:
+              command: [ "/opt/dremio/bin/dremio stop" ]
         command: ["/opt/dremio/bin/dremio"]
         args: ["start-fg"]
         ports:
+        - containerPort: 9047
+          name: web
         - containerPort: 31010
           name: client
         - containerPort: 32010
